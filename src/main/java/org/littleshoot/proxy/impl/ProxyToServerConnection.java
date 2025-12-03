@@ -1,16 +1,14 @@
 package org.littleshoot.proxy.impl;
 
 import com.google.common.net.HostAndPort;
+import com.net.layer4.common.http.UpstreamChannel;
+import com.net.layer4.common.proxy.ProxyChannel;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.*;
 import io.netty.channel.ChannelHandler.Sharable;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.channel.udt.nio.NioUdtProvider;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -27,6 +25,10 @@ import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.socksx.v5.Socks5AddressType;
+import io.netty.handler.codec.socksx.v5.Socks5CommandType;
+import io.netty.handler.codec.socksx.v5.Socks5CommandRequest;
+import io.netty.handler.codec.socksx.v5.DefaultSocks5CommandRequest;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.handler.traffic.GlobalTrafficShapingHandler;
 import io.netty.util.ReferenceCounted;
@@ -84,6 +86,9 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
     private final String serverHostAndPort;
     private volatile ChainedProxy chainedProxy;
     private final Queue<ChainedProxy> availableChainedProxies;
+
+    private final UpstreamChannel upstreamChannel;
+    private Socks5CommandRequest request;
 
     /**
      * The filters to apply to response/chunks received from server.
@@ -154,7 +159,9 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
             String serverHostAndPort,
             HttpFilters initialFilters,
             HttpRequest initialHttpRequest,
-            GlobalTrafficShapingHandler globalTrafficShapingHandler)
+            GlobalTrafficShapingHandler globalTrafficShapingHandler,
+            UpstreamChannel upstreamChannel
+            )
             throws UnknownHostException {
         Queue<ChainedProxy> chainedProxies = new ConcurrentLinkedQueue<ChainedProxy>();
         ChainedProxyManager chainedProxyManager = proxyServer
@@ -173,7 +180,8 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
                 chainedProxies.poll(),
                 chainedProxies,
                 initialFilters,
-                globalTrafficShapingHandler);
+                globalTrafficShapingHandler,
+                upstreamChannel);
     }
 
     private ProxyToServerConnection(
@@ -183,7 +191,8 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
             ChainedProxy chainedProxy,
             Queue<ChainedProxy> availableChainedProxies,
             HttpFilters initialFilters,
-            GlobalTrafficShapingHandler globalTrafficShapingHandler)
+            GlobalTrafficShapingHandler globalTrafficShapingHandler,
+            UpstreamChannel upstreamChannel)
             throws UnknownHostException {
         super(DISCONNECTED, proxyServer, true);
         this.clientConnection = clientConnection;
@@ -192,6 +201,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
         this.availableChainedProxies = availableChainedProxies;
         this.trafficHandler = globalTrafficShapingHandler;
         this.currentFilters = initialFilters;
+        this.upstreamChannel = upstreamChannel;
 
         // Report connection status to HttpFilters
         currentFilters.proxyToServerConnectionQueued();
@@ -596,11 +606,25 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
             return false;
         }
 
-        @Override
-        protected Future<?> execute() {
-            Bootstrap cb = new Bootstrap().group(proxyServer.getProxyToServerWorkerFor(transportProtocol));
+        protected Future<?> execute0() {
+            ProxyChannel pyChannel = upstreamChannel.newChannel(request);
+            initChannelPipeline(pyChannel.pipeline(), initialRequest);
+            pyChannel.config().setOption(ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                    proxyServer.getConnectTimeout());
+            pyChannel.config().setAutoRead(true);
+            return upstreamChannel.connect(pyChannel);
+        }
 
-            switch (transportProtocol) {
+        protected Future<?> execute() {
+            Bootstrap cb = new Bootstrap().group(new NioEventLoopGroup());
+            cb.channelFactory(new ChannelFactory<Channel>() {
+                @Override
+                public Channel newChannel() {
+                    return new NioSocketChannel();
+                }
+            });
+
+           /* switch (transportProtocol) {
             case TCP:
                 LOG.debug("Connecting to server with TCP");
                 cb.channelFactory(new ChannelFactory<Channel>() {
@@ -617,7 +641,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
                 break;
             default:
                 throw new UnknownTransportProtocolException(transportProtocol);
-            }
+            }*/
 
             cb.handler(new ChannelInitializer<Channel>() {
                 protected void initChannel(Channel ch) throws Exception {
@@ -812,6 +836,25 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
      * 
      * @throws UnknownHostException when unable to resolve the hostname to an IP address
      */
+    private void setupConnectionParameters0() throws UnknownHostException {
+
+        HostAndPort parsedHostAndPort;
+        try {
+            parsedHostAndPort = HostAndPort.fromString(serverHostAndPort);
+        } catch (IllegalArgumentException e) {
+            // we couldn't understand the hostAndPort string, so there is no way we can resolve it.
+            throw new UnknownHostException(serverHostAndPort);
+        }
+
+        String host = parsedHostAndPort.getHost();
+        int port = parsedHostAndPort.getPortOrDefault(80);
+
+        this.request = new DefaultSocks5CommandRequest(
+                Socks5CommandType.CONNECT,
+                Socks5AddressType.DOMAIN,
+                host,
+                port);
+    }
     private void setupConnectionParameters() throws UnknownHostException {
         if (chainedProxy != null
                 && chainedProxy != ChainedProxyAdapter.FALLBACK_TO_DIRECT_CONNECTION) {

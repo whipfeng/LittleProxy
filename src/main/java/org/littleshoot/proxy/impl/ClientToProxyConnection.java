@@ -1,6 +1,7 @@
 package org.littleshoot.proxy.impl;
 
 import com.google.common.io.BaseEncoding;
+import com.net.layer4.common.http.UpstreamChannel;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -141,13 +142,27 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
      */
     private volatile HttpRequest currentRequest;
 
-    ClientToProxyConnection(
+    private final UpstreamChannel upstreamChannel;
+
+    public ClientToProxyConnection(
             final DefaultHttpProxyServer proxyServer,
             SslEngineSource sslEngineSource,
             boolean authenticateClients,
             ChannelPipeline pipeline,
-            GlobalTrafficShapingHandler globalTrafficShapingHandler) {
+            GlobalTrafficShapingHandler globalTrafficShapingHandler
+            ) {
+        this(proxyServer, sslEngineSource, authenticateClients, pipeline, globalTrafficShapingHandler, null);
+    }
+
+    public ClientToProxyConnection(
+            final DefaultHttpProxyServer proxyServer,
+            SslEngineSource sslEngineSource,
+            boolean authenticateClients,
+            ChannelPipeline pipeline,
+            GlobalTrafficShapingHandler globalTrafficShapingHandler,
+            UpstreamChannel upstreamChannel) {
         super(AWAITING_INITIAL, proxyServer, false);
+        this.upstreamChannel = upstreamChannel;
 
         initChannelPipeline(pipeline);
 
@@ -303,7 +318,8 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
                         serverHostAndPort,
                         currentFilters,
                         httpRequest,
-                        globalTrafficShapingHandler);
+                        globalTrafficShapingHandler,
+                        upstreamChannel);
                 if (currentServerConnection == null) {
                     LOG.debug("Unable to create server connection, probably no chained proxies available");
                     boolean keepAlive = writeBadGateway(httpRequest);

@@ -886,17 +886,17 @@ public class DefaultHttpProxyServer implements HttpProxyServer {
             return this;
         }
 
-        private DefaultHttpProxyServer build() {
-            final ServerGroup serverGroup;
+        public DefaultHttpProxyServer build() {
+            /*final ServerGroup serverGroup;
 
             if (this.serverGroup != null) {
                 serverGroup = this.serverGroup;
             }
             else {
                 serverGroup = new ServerGroup(name, clientToProxyAcceptorThreads, clientToProxyWorkerThreads, proxyToServerWorkerThreads);
-            }
+            }*/
 
-            return new DefaultHttpProxyServer(serverGroup,
+            return new DefaultHttpProxyServer(null,
                     transportProtocol, determineListenAddress(),
                     sslEngineSource, authenticateSslClients,
                     proxyAuthenticator, chainProxyManager, mitmManager,

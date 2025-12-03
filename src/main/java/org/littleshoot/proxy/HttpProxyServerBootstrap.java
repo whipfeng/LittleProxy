@@ -1,5 +1,6 @@
 package org.littleshoot.proxy;
 
+import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 import org.littleshoot.proxy.impl.ThreadPoolConfiguration;
 
 import java.net.InetSocketAddress;
@@ -327,6 +328,8 @@ public interface HttpProxyServerBootstrap {
      * @return the newly built and started server
      */
     HttpProxyServer start();
+
+    DefaultHttpProxyServer build();
 
     /**
      * Set the configuration parameters for the proxy's thread pools.
