@@ -606,16 +606,13 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
             return false;
         }
 
-        protected Future<?> execute0() {
+        protected Future<?> execute() {
             ProxyChannel pyChannel = upstreamChannel.newChannel(request);
             initChannelPipeline(pyChannel.pipeline(), initialRequest);
-            pyChannel.config().setOption(ChannelOption.CONNECT_TIMEOUT_MILLIS,
-                    proxyServer.getConnectTimeout());
-            pyChannel.config().setAutoRead(true);
-            return upstreamChannel.connect(pyChannel);
+            return upstreamChannel.connect(pyChannel, true, proxyServer.getConnectTimeout());
         }
 
-        protected Future<?> execute() {
+        protected Future<?> execute0() {
             Bootstrap cb = new Bootstrap().group(new NioEventLoopGroup());
             cb.channelFactory(new ChannelFactory<Channel>() {
                 @Override
@@ -836,7 +833,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
      * 
      * @throws UnknownHostException when unable to resolve the hostname to an IP address
      */
-    private void setupConnectionParameters0() throws UnknownHostException {
+    private void setupConnectionParameters() throws UnknownHostException {
 
         HostAndPort parsedHostAndPort;
         try {
@@ -855,7 +852,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
                 host,
                 port);
     }
-    private void setupConnectionParameters() throws UnknownHostException {
+    private void setupConnectionParameters0() throws UnknownHostException {
         if (chainedProxy != null
                 && chainedProxy != ChainedProxyAdapter.FALLBACK_TO_DIRECT_CONNECTION) {
             this.transportProtocol = chainedProxy.getTransportProtocol();
