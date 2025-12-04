@@ -1,8 +1,6 @@
 package org.littleshoot.proxy.impl;
 
 import com.google.common.net.HostAndPort;
-import com.net.layer4.common.http.UpstreamGenerator;
-import com.net.layer4.common.proxy.ProxyChannel;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.buffer.ByteBuf;
@@ -33,14 +31,7 @@ import io.netty.handler.traffic.GlobalTrafficShapingHandler;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.littleshoot.proxy.ActivityTracker;
-import org.littleshoot.proxy.ChainedProxy;
-import org.littleshoot.proxy.ChainedProxyAdapter;
-import org.littleshoot.proxy.ChainedProxyManager;
-import org.littleshoot.proxy.FullFlowContext;
-import org.littleshoot.proxy.HttpFilters;
-import org.littleshoot.proxy.MitmManager;
-import org.littleshoot.proxy.TransportProtocol;
+import org.littleshoot.proxy.*;
 
 import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLSession;
@@ -605,9 +596,9 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
         }
 
         protected Future<?> execute() {
-            ProxyChannel pyChannel = upstreamGenerator.newChannel(request);
-            initChannelPipeline(pyChannel.pipeline(), initialRequest);
-            return upstreamGenerator.connect(pyChannel, true, proxyServer.getConnectTimeout());
+            Channel channel = upstreamGenerator.newChannel(request);
+            initChannelPipeline(channel.pipeline(), initialRequest);
+            return upstreamGenerator.connect(channel, true, proxyServer.getConnectTimeout());
         }
 
         protected Future<?> execute0() {

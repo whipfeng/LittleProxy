@@ -1,7 +1,6 @@
 package org.littleshoot.proxy.impl;
 
 import com.google.common.io.BaseEncoding;
-import com.net.layer4.common.http.UpstreamGenerator;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -25,13 +24,7 @@ import io.netty.handler.traffic.GlobalTrafficShapingHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.commons.lang3.StringUtils;
-import org.littleshoot.proxy.ActivityTracker;
-import org.littleshoot.proxy.FlowContext;
-import org.littleshoot.proxy.FullFlowContext;
-import org.littleshoot.proxy.HttpFilters;
-import org.littleshoot.proxy.HttpFiltersAdapter;
-import org.littleshoot.proxy.ProxyAuthenticator;
-import org.littleshoot.proxy.SslEngineSource;
+import org.littleshoot.proxy.*;
 
 import javax.net.ssl.SSLSession;
 import java.io.IOException;

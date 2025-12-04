@@ -15,8 +15,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <github.global.server>github</github.global.server>
         <netty.version>4.1.32.Final</netty.version>
-        <slf4j.version>1.7.24</slf4j.version>
-        <java.version>1.7</java.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <java.version>8</java.version>
     </properties>
 
     <organization>
@@ -183,12 +183,6 @@
     </profiles>
 
     <dependencies>
-        <dependency>
-            <groupId>com.net</groupId>
-            <artifactId>layer4-common</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
