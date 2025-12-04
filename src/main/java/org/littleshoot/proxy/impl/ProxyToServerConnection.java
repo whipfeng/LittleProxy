@@ -1,7 +1,7 @@
 package org.littleshoot.proxy.impl;
 
 import com.google.common.net.HostAndPort;
-import com.net.layer4.common.http.UpstreamChannel;
+import com.net.layer4.common.http.UpstreamGenerator;
 import com.net.layer4.common.proxy.ProxyChannel;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ChannelFactory;
@@ -10,7 +10,6 @@ import io.netty.channel.*;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.channel.udt.nio.NioUdtProvider;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -42,7 +41,6 @@ import org.littleshoot.proxy.FullFlowContext;
 import org.littleshoot.proxy.HttpFilters;
 import org.littleshoot.proxy.MitmManager;
 import org.littleshoot.proxy.TransportProtocol;
-import org.littleshoot.proxy.UnknownTransportProtocolException;
 
 import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLSession;
@@ -87,7 +85,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
     private volatile ChainedProxy chainedProxy;
     private final Queue<ChainedProxy> availableChainedProxies;
 
-    private final UpstreamChannel upstreamChannel;
+    private final UpstreamGenerator upstreamGenerator;
     private Socks5CommandRequest request;
 
     /**
@@ -160,7 +158,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
             HttpFilters initialFilters,
             HttpRequest initialHttpRequest,
             GlobalTrafficShapingHandler globalTrafficShapingHandler,
-            UpstreamChannel upstreamChannel
+            UpstreamGenerator upstreamGenerator
             )
             throws UnknownHostException {
         Queue<ChainedProxy> chainedProxies = new ConcurrentLinkedQueue<ChainedProxy>();
@@ -181,7 +179,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
                 chainedProxies,
                 initialFilters,
                 globalTrafficShapingHandler,
-                upstreamChannel);
+                upstreamGenerator);
     }
 
     private ProxyToServerConnection(
@@ -192,7 +190,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
             Queue<ChainedProxy> availableChainedProxies,
             HttpFilters initialFilters,
             GlobalTrafficShapingHandler globalTrafficShapingHandler,
-            UpstreamChannel upstreamChannel)
+            UpstreamGenerator upstreamGenerator)
             throws UnknownHostException {
         super(DISCONNECTED, proxyServer, true);
         this.clientConnection = clientConnection;
@@ -201,7 +199,7 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
         this.availableChainedProxies = availableChainedProxies;
         this.trafficHandler = globalTrafficShapingHandler;
         this.currentFilters = initialFilters;
-        this.upstreamChannel = upstreamChannel;
+        this.upstreamGenerator = upstreamGenerator;
 
         // Report connection status to HttpFilters
         currentFilters.proxyToServerConnectionQueued();
@@ -607,9 +605,9 @@ public class ProxyToServerConnection extends ProxyConnection<HttpResponse> {
         }
 
         protected Future<?> execute() {
-            ProxyChannel pyChannel = upstreamChannel.newChannel(request);
+            ProxyChannel pyChannel = upstreamGenerator.newChannel(request);
             initChannelPipeline(pyChannel.pipeline(), initialRequest);
-            return upstreamChannel.connect(pyChannel, true, proxyServer.getConnectTimeout());
+            return upstreamGenerator.connect(pyChannel, true, proxyServer.getConnectTimeout());
         }
 
         protected Future<?> execute0() {

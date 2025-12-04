@@ -1,7 +1,7 @@
 package org.littleshoot.proxy.impl;
 
 import com.google.common.io.BaseEncoding;
-import com.net.layer4.common.http.UpstreamChannel;
+import com.net.layer4.common.http.UpstreamGenerator;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -142,7 +142,7 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
      */
     private volatile HttpRequest currentRequest;
 
-    private final UpstreamChannel upstreamChannel;
+    private final UpstreamGenerator upstreamGenerator;
 
     public ClientToProxyConnection(
             final DefaultHttpProxyServer proxyServer,
@@ -160,9 +160,9 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
             boolean authenticateClients,
             ChannelPipeline pipeline,
             GlobalTrafficShapingHandler globalTrafficShapingHandler,
-            UpstreamChannel upstreamChannel) {
+            UpstreamGenerator upstreamGenerator) {
         super(AWAITING_INITIAL, proxyServer, false);
-        this.upstreamChannel = upstreamChannel;
+        this.upstreamGenerator = upstreamGenerator;
 
         initChannelPipeline(pipeline);
 
@@ -319,7 +319,7 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
                         currentFilters,
                         httpRequest,
                         globalTrafficShapingHandler,
-                        upstreamChannel);
+                        upstreamGenerator);
                 if (currentServerConnection == null) {
                     LOG.debug("Unable to create server connection, probably no chained proxies available");
                     boolean keepAlive = writeBadGateway(httpRequest);
